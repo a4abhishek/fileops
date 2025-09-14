@@ -1,0 +1,40 @@
+# FileOps Configuration
+# This file contains the default configuration for FileOps
+
+# Performance settings
+performance:
+  max_workers: 0          # 0 = auto-detect CPU cores
+  memory_limit: "80%"     # Maximum memory usage
+  chunk_size: "64MB"      # File processing chunk size
+  cache_size: "1GB"       # Cache size for operations
+
+# Operation settings
+operations:
+  hash_algorithm: "blake2b"           # Hash algorithm: blake2b, sha256, xxhash64, crc32
+  duplicate_threshold: 0.99           # Threshold for duplicate detection (0.0-1.0)
+  similarity_threshold: 0.85          # Threshold for similarity detection (0.0-1.0)
+  enable_progress_bar: true           # Show progress bars
+  backup_before_delete: true          # Create backups before deletion
+
+# AI/ML settings
+ai:
+  enabled: true                       # Enable AI features
+  model_cache: "./models"            # Directory to cache ML models
+  python_service_url: "http://localhost:8001"  # Python ML service URL
+  auto_start_service: true           # Automatically start Python service
+
+# Logging configuration
+logging:
+  level: "info"                      # Log level: debug, info, warn, error, fatal
+  file: "fileops.log"               # Log file path
+  max_size: "100MB"                 # Maximum log file size
+  format: "json"                    # Log format: json, text
+  console: true                     # Enable console logging
+
+# Plugin configuration
+plugins:
+  enabled:                          # List of enabled plugins
+    - "dedup"
+    - "cleanup"
+    - "organize"
+  custom_plugins_dir: "./plugins"   # Directory for custom plugins
