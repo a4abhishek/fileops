@@ -119,6 +119,8 @@ func (co *CleanupOperation) countDirectories(ctx context.Context, config domain.
 		return fmt.Errorf("no paths specified for cleanup")
 	}
 
+	var processedItems int64
+
 	for _, rootPath := range pathsToProcess {
 		if err := co.CheckContext(ctx); err != nil {
 			return err
@@ -129,8 +131,14 @@ func (co *CleanupOperation) countDirectories(ctx context.Context, config domain.
 				return nil // Skip errors during counting
 			}
 
-			if info != nil && info.IsDir && co.shouldProcessDirectory(path, config) {
-				co.totalDirs++
+			if info != nil {
+				if info.IsDir && co.shouldProcessDirectory(path, config) {
+					co.totalDirs++
+				}
+
+				// Update progress for every item scanned (files and directories)
+				processedItems++
+				co.IncrementProgress(1, 0)
 			}
 
 			return nil

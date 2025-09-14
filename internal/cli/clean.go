@@ -87,7 +87,10 @@ It supports dry-run mode for safe preview and has configurable exclusion pattern
 				fmt.Printf("⚡ Using %d parallel workers\n\n", parallelism)
 			}
 
-			// Start progress monitoring in a separate goroutine
+			// Pre-generate operation ID for progress monitoring
+			operationID := fmt.Sprintf("cleanup-%s", time.Now().Format("20060102-150405"))
+
+			// Start progress monitoring in a separate goroutine BEFORE starting operation
 			progressCtx, progressCancel := context.WithCancel(ctx)
 			defer progressCancel()
 
@@ -96,12 +99,14 @@ It supports dry-run mode for safe preview and has configurable exclusion pattern
 				progressWg.Add(1)
 				go func() {
 					defer progressWg.Done()
-					MonitorProgress(progressCtx, tracker, "cleanup", "cleanup")
+					MonitorProgress(progressCtx, tracker, operationID, "cleanup")
 				}()
+				// Give the monitor a moment to start
+				time.Sleep(50 * time.Millisecond)
 			}
 
-			// Execute operation
-			result, err := operationEngine.ExecuteOperation(ctx, domain.OperationCleanup, config)
+			// Execute operation with predefined ID so progress monitoring works
+			result, err := operationEngine.ExecuteOperationWithID(ctx, domain.OperationCleanup, config, operationID)
 
 			// Stop progress monitoring
 			progressCancel()

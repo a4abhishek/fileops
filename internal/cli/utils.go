@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -128,9 +129,20 @@ func MonitorProgress(ctx context.Context, tracker *progress.Tracker, operationID
 	for {
 		select {
 		case <-ctx.Done():
+			// Clear the progress line on exit
+			fmt.Print("\r\033[K")
+			_ = os.Stdout.Sync()
 			return
 		case <-ticker.C:
 			if info := tracker.GetProgress(operationID); info != nil {
+				// Check if operation is completed
+				if info.Status == domain.StatusCompleted || info.Status == domain.StatusFailed {
+					// Clear the progress line and exit
+					fmt.Print("\r\033[K")
+					_ = os.Stdout.Sync()
+					return
+				}
+
 				// Calculate processing speeds
 				var itemsPerSec, bytesPerSec float64
 				if !lastUpdate.IsZero() {
@@ -151,6 +163,8 @@ func MonitorProgress(ctx context.Context, tracker *progress.Tracker, operationID
 					displayCleanupProgress(info, itemsPerSec)
 				case "deduplication":
 					displayDedupProgress(info, itemsPerSec, bytesPerSec)
+				case "ownership":
+					displayOwnershipProgress(info, itemsPerSec)
 				default:
 					displayGenericProgress(info, itemsPerSec, bytesPerSec)
 				}
@@ -164,20 +178,38 @@ func MonitorProgress(ctx context.Context, tracker *progress.Tracker, operationID
 }
 
 func displayCleanupProgress(info *domain.ProgressInfo, itemsPerSec float64) {
+	// Clear the current line and move cursor to beginning
+	fmt.Print("\r\033[K")
+
+	stepIcon := "🔄"
+	stepAction := "Processing"
+
+	// Customize display based on current step
+	switch info.CurrentStep {
+	case "Scanning directories":
+		stepIcon = "🔍"
+		stepAction = "Scanning"
+	case "Identifying empty directories":
+		stepIcon = "🔎"
+		stepAction = "Analyzing"
+	case "Processing empty directories":
+		stepIcon = "🧹"
+		stepAction = "Cleaning"
+	case "Completing cleanup":
+		stepIcon = "✅"
+		stepAction = "Finalizing"
+	}
+
 	if info.TotalItems > 0 {
 		percentage := float64(info.ItemsProcessed) / float64(info.TotalItems) * 100
-		fmt.Printf("\r🔄 Scanning: %.1f%% (%d/%d directories",
-			percentage, info.ItemsProcessed, info.TotalItems)
+		fmt.Printf("%s %s: %.1f%% (%d/%d items",
+			stepIcon, stepAction, percentage, info.ItemsProcessed, info.TotalItems)
 	} else {
-		fmt.Printf("\r🔄 Processing: %d directories", info.ItemsProcessed)
+		fmt.Printf("%s %s: %d items", stepIcon, stepAction, info.ItemsProcessed)
 	}
 
 	if itemsPerSec > 0 {
-		fmt.Printf(", %.0f dirs/sec", itemsPerSec)
-	}
-
-	if info.CurrentStep != "" {
-		fmt.Printf(" - %s", info.CurrentStep)
+		fmt.Printf(", %.0f items/sec", itemsPerSec)
 	}
 
 	if info.EstimatedETA != nil && *info.EstimatedETA > 0 {
@@ -185,6 +217,54 @@ func displayCleanupProgress(info *domain.ProgressInfo, itemsPerSec float64) {
 	}
 
 	fmt.Print(")")
+
+	// Force flush the output
+	_ = os.Stdout.Sync()
+}
+
+func displayOwnershipProgress(info *domain.ProgressInfo, itemsPerSec float64) {
+	// Clear the current line and move cursor to beginning
+	fmt.Print("\r\033[K")
+
+	stepIcon := "👑"
+	stepAction := "Processing"
+
+	// Customize display based on current step
+	switch info.CurrentStep {
+	case "Scanning paths":
+		stepIcon = "🔍"
+		stepAction = "Scanning"
+	case "Analyzing ownership":
+		stepIcon = "🔎"
+		stepAction = "Analyzing"
+	case "Changing ownership":
+		stepIcon = "👑"
+		stepAction = "Updating"
+	case "Completing operation":
+		stepIcon = "✅"
+		stepAction = "Finalizing"
+	}
+
+	if info.TotalItems > 0 {
+		percentage := float64(info.ItemsProcessed) / float64(info.TotalItems) * 100
+		fmt.Printf("%s %s: %.1f%% (%d/%d items",
+			stepIcon, stepAction, percentage, info.ItemsProcessed, info.TotalItems)
+	} else {
+		fmt.Printf("%s %s: %d items", stepIcon, stepAction, info.ItemsProcessed)
+	}
+
+	if itemsPerSec > 0 {
+		fmt.Printf(", %.0f items/sec", itemsPerSec)
+	}
+
+	if info.EstimatedETA != nil && *info.EstimatedETA > 0 {
+		fmt.Printf(", ETA: %v", info.EstimatedETA.Round(time.Second))
+	}
+
+	fmt.Print(")")
+
+	// Force flush the output for WSL compatibility
+	_ = os.Stdout.Sync()
 }
 
 func displayDedupProgress(info *domain.ProgressInfo, itemsPerSec, bytesPerSec float64) {
@@ -216,6 +296,9 @@ func displayDedupProgress(info *domain.ProgressInfo, itemsPerSec, bytesPerSec fl
 	}
 
 	fmt.Print(")")
+
+	// Force flush the output for WSL compatibility
+	_ = os.Stdout.Sync()
 }
 
 func displayGenericProgress(info *domain.ProgressInfo, itemsPerSec, bytesPerSec float64) {
@@ -247,4 +330,7 @@ func displayGenericProgress(info *domain.ProgressInfo, itemsPerSec, bytesPerSec 
 	}
 
 	fmt.Print(")")
+
+	// Force flush the output for WSL compatibility
+	_ = os.Stdout.Sync()
 }

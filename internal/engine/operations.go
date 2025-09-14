@@ -213,6 +213,7 @@ func (oo *OwnershipOperation) Execute(ctx context.Context, config domain.Operati
 
 	var filesToProcess []string
 	var scanErrors []error
+	var scannedCount int64
 
 	for _, pattern := range config.IncludePatterns {
 		err := oo.engine.fileSystem.Walk(ctx, pattern, func(path string, info *domain.FileInfo, err error) error {
@@ -239,6 +240,12 @@ func (oo *OwnershipOperation) Execute(ctx context.Context, config domain.Operati
 				filesToProcess = append(filesToProcess, path)
 			}
 
+			// Update progress in real-time during scanning
+			scannedCount++
+			if scannedCount%100 == 0 || scannedCount < 100 {
+				tracker.UpdateProgress(scannedCount, 0, 0, 0) // TotalItems unknown during scanning
+			}
+
 			return nil
 		})
 
@@ -254,6 +261,7 @@ func (oo *OwnershipOperation) Execute(ctx context.Context, config domain.Operati
 		}
 	}
 
+	// Update progress with final scan count and total items
 	tracker.UpdateProgress(int64(len(filesToProcess)), int64(len(filesToProcess)), 0, 0)
 
 	// Step 2: Change ownership

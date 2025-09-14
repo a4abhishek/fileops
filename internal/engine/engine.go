@@ -61,6 +61,11 @@ func (e *Engine) RegisterOperation(operationType domain.OperationType, factory O
 
 // ExecuteOperation executes an operation with the given configuration
 func (e *Engine) ExecuteOperation(ctx context.Context, operationType domain.OperationType, config domain.OperationConfig) (*domain.OperationResult, error) {
+	return e.ExecuteOperationWithID(ctx, operationType, config, "")
+}
+
+// ExecuteOperationWithID executes an operation with a specific operation ID (or generates one if empty)
+func (e *Engine) ExecuteOperationWithID(ctx context.Context, operationType domain.OperationType, config domain.OperationConfig, operationID string) (*domain.OperationResult, error) {
 	e.mu.RLock()
 	factory, exists := e.operations[operationType]
 	e.mu.RUnlock()
@@ -74,8 +79,10 @@ func (e *Engine) ExecuteOperation(ctx context.Context, operationType domain.Oper
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
-	// Generate operation ID
-	operationID := generateOperationID(operationType)
+	// Generate operation ID if not provided
+	if operationID == "" {
+		operationID = generateOperationID(operationType)
+	}
 
 	// Create operation
 	operation, err := factory.Create(operationID, config)
@@ -100,6 +107,14 @@ func (e *Engine) ExecuteOperation(ctx context.Context, operationType domain.Oper
 	e.logger.Info("Operation completed", "id", operationID, "duration", result.Duration)
 
 	return result, nil
+}
+
+// ExecuteOperationWithProgress executes an operation and returns the operation ID for progress tracking
+func (e *Engine) ExecuteOperationWithProgress(ctx context.Context, operationType domain.OperationType, config domain.OperationConfig) (string, *domain.OperationResult, error) {
+	// Generate operation ID
+	operationID := generateOperationID(operationType)
+	result, err := e.ExecuteOperationWithID(ctx, operationType, config, operationID)
+	return operationID, result, err
 }
 
 // GetSupportedOperations returns list of supported operation types

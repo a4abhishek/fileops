@@ -103,7 +103,10 @@ This command uses a multi-stage approach for fast and accurate duplicate detecti
 				fmt.Printf("⚡ Using %d parallel workers\n\n", parallelism)
 			}
 
-			// Start progress monitoring in a separate goroutine
+			// Pre-generate operation ID for progress monitoring
+			operationID := fmt.Sprintf("deduplication-%s", time.Now().Format("20060102-150405"))
+
+			// Start progress monitoring in a separate goroutine BEFORE starting operation
 			progressCtx, progressCancel := context.WithCancel(ctx)
 			defer progressCancel()
 
@@ -112,12 +115,14 @@ This command uses a multi-stage approach for fast and accurate duplicate detecti
 				progressWg.Add(1)
 				go func() {
 					defer progressWg.Done()
-					MonitorProgress(progressCtx, tracker, "deduplication", "deduplication")
+					MonitorProgress(progressCtx, tracker, operationID, "deduplication")
 				}()
+				// Give the monitor a moment to start
+				time.Sleep(50 * time.Millisecond)
 			}
 
-			// Execute operation
-			result, err := operationEngine.ExecuteOperation(ctx, domain.OperationDeduplication, config)
+			// Execute operation with predefined ID so progress monitoring works
+			result, err := operationEngine.ExecuteOperationWithID(ctx, domain.OperationDeduplication, config, operationID)
 
 			// Stop progress monitoring
 			progressCancel()

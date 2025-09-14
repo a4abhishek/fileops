@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/a4abhishek/fileops/internal/config"
 	"github.com/a4abhishek/fileops/internal/engine"
@@ -149,7 +150,10 @@ for preview before making changes.`,
 				DisplayOperationStart("ownership change", fmt.Sprintf("%v", validPaths), dryRun, params)
 			}
 
-			// Start progress monitoring
+			// Pre-generate operation ID for progress monitoring
+			operationID := fmt.Sprintf("ownership-%s", time.Now().Format("20060102-150405"))
+
+			// Start progress monitoring in a separate goroutine BEFORE starting operation
 			progressCtx, progressCancel := context.WithCancel(ctx)
 			defer progressCancel()
 
@@ -158,12 +162,14 @@ for preview before making changes.`,
 				progressWg.Add(1)
 				go func() {
 					defer progressWg.Done()
-					MonitorProgress(progressCtx, tracker, "ownership", "ownership")
+					MonitorProgress(progressCtx, tracker, operationID, "ownership")
 				}()
+				// Give the monitor a moment to start
+				time.Sleep(50 * time.Millisecond)
 			}
 
-			// Execute operation
-			result, err := operationEngine.ExecuteOperation(ctx, domain.OperationOwnership, config)
+			// Execute operation with predefined ID so progress monitoring works
+			result, err := operationEngine.ExecuteOperationWithID(ctx, domain.OperationOwnership, config, operationID)
 
 			// Stop progress monitoring
 			progressCancel()
