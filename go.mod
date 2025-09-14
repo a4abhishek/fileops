@@ -4,21 +4,14 @@ go 1.21
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0
-	github.com/dgraph-io/badger/v3 v3.2103.5
-	github.com/dustin/go-humanize v1.0.1
 	github.com/fatih/color v1.16.0
-	github.com/fsnotify/fsnotify v1.7.0
-	github.com/karrick/godirwalk v1.17.0
-	github.com/panjf2000/ants/v2 v2.9.0
-	github.com/prometheus/client_golang v1.18.0
-	github.com/schollz/progressbar/v3 v3.14.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	golang.org/x/crypto v0.19.0
-	golang.org/x/sync v0.6.0
 )
 
 require (
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
