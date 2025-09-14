@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
+	"time"
 
 	"github.com/a4abhishek/fileops/internal/config"
 	"github.com/a4abhishek/fileops/internal/engine"
@@ -64,35 +66,103 @@ It supports dry-run mode for safe preview and has configurable exclusion pattern
 			tracker := progress.NewTracker()
 			operationEngine := engine.NewEngine(fs, tracker, log)
 
+			// Get quiet flag from root command
+			quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
 			log.Info("🧹 Starting directory cleanup",
 				"paths", validPaths,
 				"dry_run", dryRun,
 				"exclude_patterns", excludePatterns)
 
+			// Show initial status
+			if !quiet {
+				fmt.Printf("🔍 Scanning directories...\n")
+				if dryRun {
+					fmt.Printf("📋 DRY RUN MODE: No changes will be made\n")
+				}
+				fmt.Printf("📂 Paths to process: %v\n", validPaths)
+				if len(excludePatterns) > 0 {
+					fmt.Printf("🚫 Excluding patterns: %v\n", excludePatterns)
+				}
+				fmt.Printf("⚡ Using %d parallel workers\n\n", parallelism)
+			}
+
+			// Start progress monitoring in a separate goroutine
+			progressCtx, progressCancel := context.WithCancel(ctx)
+			defer progressCancel()
+
+			var progressWg sync.WaitGroup
+			if !quiet && cfg.Operations.EnableProgressBar {
+				progressWg.Add(1)
+				go func() {
+					defer progressWg.Done()
+					MonitorProgress(progressCtx, tracker, "cleanup", "cleanup")
+				}()
+			}
+
 			// Execute operation
 			result, err := operationEngine.ExecuteOperation(ctx, domain.OperationCleanup, config)
+
+			// Stop progress monitoring
+			progressCancel()
+			progressWg.Wait()
+
 			if err != nil {
+				if !quiet {
+					fmt.Printf("\n❌ Cleanup operation failed: %v\n", err)
+				}
 				return fmt.Errorf("cleanup operation failed: %w", err)
 			}
 
 			// Display results
+			if !quiet {
+				fmt.Printf("\n\n✅ Cleanup completed successfully!\n")
+
+				// Show operation summary
+				if result.Summary != "" {
+					fmt.Printf("📊 %s\n", result.Summary)
+				}
+
+				// Show timing information
+				duration := result.EndTime.Sub(result.StartTime)
+				fmt.Printf("⏱️  Total time: %v\n", duration.Round(time.Millisecond))
+			}
+
 			log.Info("✅ Cleanup completed", "summary", result.Summary)
 
 			if removedDirs, ok := result.Details["removed_directories"].([]string); ok && len(removedDirs) > 0 {
-				fmt.Printf("\n📁 Directories processed:\n")
-				for _, dir := range removedDirs {
-					if dryRun {
-						fmt.Printf("  [DRY RUN] Would remove: %s\n", dir)
-					} else {
-						fmt.Printf("  ✓ Removed: %s\n", dir)
+				if !quiet {
+					fmt.Printf("\n📁 Directories processed (%d total):\n", len(removedDirs))
+					for i, dir := range removedDirs {
+						if i >= 20 {
+							fmt.Printf("  ... and %d more directories\n", len(removedDirs)-20)
+							break
+						}
+						if dryRun {
+							fmt.Printf("  [DRY RUN] Would remove: %s\n", dir)
+						} else {
+							fmt.Printf("  ✓ Removed: %s\n", dir)
+						}
 					}
+				}
+			} else if !quiet {
+				if dryRun {
+					fmt.Printf("\n📁 No empty directories found to remove\n")
+				} else {
+					fmt.Printf("\n📁 No directories were removed\n")
 				}
 			}
 
 			if skippedDirs, ok := result.Details["skipped_directories"].([]string); ok && len(skippedDirs) > 0 {
-				fmt.Printf("\n⚠️  Skipped directories:\n")
-				for _, dir := range skippedDirs {
-					fmt.Printf("  - %s\n", dir)
+				if !quiet {
+					fmt.Printf("\n⚠️  Skipped directories (%d total):\n", len(skippedDirs))
+					for i, dir := range skippedDirs {
+						if i >= 10 {
+							fmt.Printf("  ... and %d more directories\n", len(skippedDirs)-10)
+							break
+						}
+						fmt.Printf("  - %s\n", dir)
+					}
 				}
 			}
 

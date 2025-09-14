@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
+	"time"
 
 	"github.com/a4abhishek/fileops/internal/config"
 	"github.com/a4abhishek/fileops/internal/engine"
@@ -71,30 +73,84 @@ This command uses a multi-stage approach for fast and accurate duplicate detecti
 			tracker := progress.NewTracker()
 			operationEngine := engine.NewEngine(fs, tracker, log)
 
+			// Get quiet flag from root command
+			quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
 			log.Info("🔍 Starting deduplication",
 				"paths", validPaths,
 				"algorithm", algorithm,
 				"threshold", threshold,
 				"dry_run", dryRun)
 
+			// Show initial status
+			if !quiet {
+				fmt.Printf("🔍 Starting file deduplication...\n")
+				if dryRun {
+					fmt.Printf("📋 DRY RUN MODE: No files will be deleted\n")
+				}
+				fmt.Printf("📂 Paths to scan: %v\n", validPaths)
+				fmt.Printf("🔢 Hash algorithm: %s\n", algorithm)
+				fmt.Printf("📊 Similarity threshold: %.2f\n", threshold)
+				if len(excludePatterns) > 0 {
+					fmt.Printf("🚫 Excluding patterns: %v\n", excludePatterns)
+				}
+				if minSize > 0 {
+					fmt.Printf("📏 Minimum file size: %s\n", FormatBytes(minSize))
+				}
+				if maxSize > 0 {
+					fmt.Printf("📏 Maximum file size: %s\n", FormatBytes(maxSize))
+				}
+				fmt.Printf("⚡ Using %d parallel workers\n\n", parallelism)
+			}
+
+			// Start progress monitoring in a separate goroutine
+			progressCtx, progressCancel := context.WithCancel(ctx)
+			defer progressCancel()
+
+			var progressWg sync.WaitGroup
+			if !quiet && cfg.Operations.EnableProgressBar {
+				progressWg.Add(1)
+				go func() {
+					defer progressWg.Done()
+					MonitorProgress(progressCtx, tracker, "deduplication", "deduplication")
+				}()
+			}
+
 			// Execute operation
 			result, err := operationEngine.ExecuteOperation(ctx, domain.OperationDeduplication, config)
+
+			// Stop progress monitoring
+			progressCancel()
+			progressWg.Wait()
+
 			if err != nil {
+				if !quiet {
+					fmt.Printf("\n❌ Deduplication operation failed: %v\n", err)
+				}
 				return fmt.Errorf("deduplication operation failed: %w", err)
 			}
 
 			// Display results
-			log.Info("✅ Deduplication completed", "summary", result.Summary)
-			fmt.Printf("\n📊 Deduplication Results:\n")
-			fmt.Printf("  Algorithm: %s\n", algorithm)
-			fmt.Printf("  Threshold: %.2f\n", threshold)
+			if !quiet {
+				fmt.Printf("\n\n✅ Deduplication completed successfully!\n")
 
-			if duplicateGroups, ok := result.Details["duplicate_groups"].(int); ok {
-				fmt.Printf("  Duplicate groups found: %d\n", duplicateGroups)
+				// Show timing information
+				duration := result.EndTime.Sub(result.StartTime)
+				fmt.Printf("⏱️  Total time: %v\n\n", duration.Round(time.Millisecond))
+
+				fmt.Printf("📊 Deduplication Results:\n")
+				fmt.Printf("  🔢 Algorithm: %s\n", algorithm)
+				fmt.Printf("  📊 Threshold: %.2f\n", threshold)
 			}
 
-			if totalSize, ok := result.Details["total_size"].(int64); ok {
-				fmt.Printf("  Total size processed: %s\n", FormatBytes(totalSize))
+			log.Info("✅ Deduplication completed", "summary", result.Summary)
+
+			if duplicateGroups, ok := result.Details["duplicate_groups"].(int); ok && !quiet {
+				fmt.Printf("  🔍 Duplicate groups found: %d\n", duplicateGroups)
+			}
+
+			if totalSize, ok := result.Details["total_size"].(int64); ok && !quiet {
+				fmt.Printf("  📦 Total size processed: %s\n", FormatBytes(totalSize))
 			}
 
 			if saveableSize, ok := result.Details["saveable_size"].(int64); ok {
