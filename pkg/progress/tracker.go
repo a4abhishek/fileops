@@ -84,7 +84,7 @@ func (t *Tracker) StartOperation(id string, operationType domain.OperationType, 
 	t.mu.Unlock()
 
 	// Report initial progress
-	t.reportProgress(tracker.GetProgressInfo())
+	_ = t.reportProgress(tracker.GetProgressInfo())
 
 	return tracker
 }
@@ -438,7 +438,7 @@ func (t *Tracker) StartAutoReporting(ctx context.Context, interval time.Duration
 			for _, tracker := range t.operations {
 				if tracker.status == domain.StatusRunning {
 					progress := tracker.GetProgressInfo()
-					t.reportProgress(progress)
+					_ = t.reportProgress(progress)
 				}
 			}
 			t.mu.RUnlock()

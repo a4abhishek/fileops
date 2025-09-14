@@ -43,7 +43,7 @@ destination directory with conflict resolution and organization options.`,
 	cmd.Flags().Bool("dry-run", false, "Preview changes without executing them")
 
 	// Mark dest as required
-	cmd.MarkFlagRequired("dest")
+	_ = cmd.MarkFlagRequired("dest")
 
 	return cmd
 }

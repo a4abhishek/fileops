@@ -31,6 +31,7 @@ const (
 	OperationConsolidation OperationType = "consolidation"
 	OperationSimilarity    OperationType = "similarity"
 	OperationOrganization  OperationType = "organization"
+	OperationOwnership     OperationType = "ownership"
 	OperationPipeline      OperationType = "pipeline"
 )
 

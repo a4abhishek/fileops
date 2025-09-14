@@ -44,7 +44,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "❌ Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	// Create and execute CLI
 	rootCmd := cli.NewRootCommand(ctx, cfg, log)

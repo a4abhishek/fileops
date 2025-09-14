@@ -89,7 +89,7 @@ func DisplayOperationStart(operation, paths string, dryRun bool, params map[stri
 
 	// Display operation-specific parameters
 	for key, value := range params {
-		fmt.Printf("📊 %s: %v\n", strings.Title(strings.ReplaceAll(key, "_", " ")), value)
+		fmt.Printf("📊 %s: %v\n", capitalizeFirst(strings.ReplaceAll(key, "_", " ")), value)
 	}
 	fmt.Println()
 }
@@ -109,7 +109,7 @@ func DisplayOperationComplete(operation string, duration time.Duration, summary 
 		icon = "⚙️"
 	}
 
-	fmt.Printf("\n\n✅ %s completed successfully!\n", strings.Title(operation))
+	fmt.Printf("\n\n%s ✅ %s completed successfully!\n", icon, capitalizeFirst(operation))
 	if summary != "" {
 		fmt.Printf("📊 %s\n", summary)
 	}

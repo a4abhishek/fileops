@@ -52,6 +52,7 @@ Features:
 		NewSimilarImagesCommand(ctx, cfg, log),
 		NewOrganizeCommand(ctx, cfg, log),
 		NewPipelineCommand(ctx, cfg, log),
+		NewChownCommand(ctx, cfg, log),
 		newVersionCommand(),
 	)
 

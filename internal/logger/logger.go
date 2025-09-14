@@ -175,7 +175,7 @@ func (l *Logger) logFile(level LogLevel, msg string, keysAndValues ...interface{
 		output += " " + formatKeyValues(keysAndValues...)
 	}
 
-	l.file.WriteString(output + "\n")
+	_, _ = l.file.WriteString(output + "\n")
 }
 
 // formatKeyValues formats key-value pairs

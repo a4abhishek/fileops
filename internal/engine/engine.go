@@ -47,6 +47,7 @@ func NewEngine(fs domain.FileSystem, tracker *progress.Tracker, log *logger.Logg
 	engine.RegisterOperation(domain.OperationCleanup, &CleanupFactory{engine: engine})
 	engine.RegisterOperation(domain.OperationDeduplication, &DeduplicationFactory{engine: engine})
 	engine.RegisterOperation(domain.OperationConsolidation, &ConsolidationFactory{engine: engine})
+	engine.RegisterOperation(domain.OperationOwnership, &OwnershipFactory{engine: engine})
 
 	return engine
 }
